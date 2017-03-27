@@ -11,9 +11,11 @@
 # =============================================================================
 '''
 import numpy as np
-from skimage import io
+from skimage import io, morphology
 import matplotlib.pyplot as plt
 import random
+import time
+from scipy import signal
 
 def gaussian2D(size, sigma = 1, center=None):
     x = np.arange(0, size, 1, float)
@@ -27,6 +29,27 @@ def gaussian2D(size, sigma = 1, center=None):
     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / sigma**2)
 
 def get_unfilled_neighbor(visited_mat):
+    count_mask = np.ones((3,3))
+    count_mask[1][1] = 0
+    dilation_mat = np.ones((3,3))
+    dilation_mask = morphology.dilation(visited_mat, selem=dilation_mat) - visited_mat
+    count_dict = {}
+    x,y = dilation_mask.shape
+    for (i,j),v in np.ndenumerate(dilation_mask):
+        if v == 1:
+            tmp = visited_mat[max(0, i-1):min(i+2,x) , max(0, j-1):min(y,j+2)]
+            count = int(np.multiply(tmp, count_mask[max(0, 1-i):min(3, 3+min(x-i-2, 0)), max(0, 1-j):min(3, 3+min(y-j-2, 0))]).sum())
+            if count_dict.has_key(count):
+                count_dict[count].append((i,j))
+            else:
+                count_dict.setdefault(count, [(i,j)])
+    count_list = count_dict.keys()
+    count_list.sort()
+    unfilled_list = []
+    for key in count_list:
+        unfilled_list += count_dict[key]
+    '''
+    # plain brute implementation
     direction = [(0,1), (0,-1), (-1,0), (1,0),(-1,1),(1,1),(-1,-1),(1,-1)]
     x, y = visited_mat.shape
     unfilled_list = []
@@ -39,6 +62,7 @@ def get_unfilled_neighbor(visited_mat):
                     if i + diff_x >= 0 and i + diff_x < (x - 1) and j+diff_y >= 0 and j + diff_y < (y-1) and visited_mat[i+diff_x][j + diff_y] == 1:
                         unfilled_list.append((i, j))
                         break
+    '''
     return unfilled_list
 
 def get_neighborwind(image, window_size, pixel):
@@ -72,7 +96,7 @@ def find_matches(template, image, sample,visited_mat, window_size, center, err_t
     for x in range(SSD.shape[0]):
         for y in range(SSD.shape[1]):
             if SSD[x,y] <= threshold:
-                pixel_list.append((x,y,SSD[x,y]))
+                pixel_list.append((x + margin,y + margin,SSD[x,y]))
     return pixel_list
 
 def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold):
@@ -88,7 +112,10 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
             break
         for pixel in pixel_list:
             template = get_neighborwind(image, window_size, pixel)
+            start = time.time()
             matches_list = find_matches(template,image, sample, visited_mat, window_size, pixel, err_threshold, gauss_mask)
+            end = time.time()
+            print end - start
             match_pixel = matches_list[random.randrange(len(matches_list))]
             if match_pixel[2] < max_err_threshold:
                 image[pixel[0],pixel[1]] = sample[match_pixel[0], match_pixel[1]]
@@ -114,7 +141,7 @@ def do_efros(sample, new_x, new_y, window_size):
     image[start_x: (start_x + size[0]), start_y:(start_y + size[1])] = sample
     visited_mat[start_x: (start_x + size[0]), start_y:(start_y + size[1])] = 1
     grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold)
-    io.imshow(image)
+    io.imshow(image, cmap='gray')
     io.show()
 
 if __name__ == '__main__':
