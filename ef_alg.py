@@ -63,6 +63,7 @@ def get_unfilled_neighbor(visited_mat):
                         unfilled_list.append((i, j))
                         break
     '''
+    print unfilled_list
     return unfilled_list
 
 def get_neighborwind(image, window_size, pixel):
