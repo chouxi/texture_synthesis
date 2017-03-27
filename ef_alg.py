@@ -83,15 +83,14 @@ def find_matches(template, image, sample,visited_mat, window_size, center, err_t
     total_weight = weight_mat.sum()
     sample_size = sample.shape
     SSD = np.zeros((sample_size[0] - 2*margin, sample_size[1]-2*margin))
-    for (x,y) in np.ndenumerate(sample):
-        if x < margin or x > sample_size[0] - margin or y < margin or y > sample_size[1] - margin:
-            continue
-        sample_block = sample[(x - margin):(x+1 + margin),(y-margin):(y+1+margin)]
-        # shift sample_block to the same as template
-        sample_block = sample_block[template[0] - (center[0]-margin):window_size + (template[1] - (center[0] + 1 + margin)), template[2] - (center[1]-margin):window_size + (template[3] - (center[1] + 1 + margin))]
-        if sample_block.shape != valid_mask.shape:
-            print "[ERROR] sample_block shape " + str(sample_block.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +"."
-        SSD[x-margin,y-margin] = (np.multiply(weight_mat, np.square(template_block-sample_block)).sum()) / total_weight
+    for x in range(margin, sample_size[0]-margin):
+        for y in range(margin, sample_size[1] -margin):
+            sample_block = sample[(x - margin):(x+1 + margin),(y-margin):(y+1+margin)]
+            # shift sample_block to the same as template
+            sample_block = sample_block[template[0] - (center[0]-margin):window_size + (template[1] - (center[0] + 1 + margin)), template[2] - (center[1]-margin):window_size + (template[3] - (center[1] + 1 + margin))]
+            if sample_block.shape != valid_mask.shape:
+                print "[ERROR] sample_block shape " + str(sample_block.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +"."
+            SSD[x-margin,y-margin] = (np.multiply(weight_mat, np.square(template_block-sample_block)).sum()) / total_weight
     threshold= SSD.min()*(1+err_threshold)
     pixel_list = []
     for x in range(SSD.shape[0]):
@@ -113,10 +112,10 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
             break
         for pixel in pixel_list:
             template = get_neighborwind(image, window_size, pixel)
-            #start = time.time()
+            start = time.time()
             matches_list = find_matches(template,image, sample, visited_mat, window_size, pixel, err_threshold, gauss_mask)
-            #end = time.time()
-            #print end - start
+            end = time.time()
+            print end - start
             match_pixel = matches_list[random.randrange(len(matches_list))]
             if match_pixel[2] < max_err_threshold:
                 image[pixel[0],pixel[1]] = sample[match_pixel[0], match_pixel[1]]
@@ -124,8 +123,8 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
                 flag = 1
         if flag == 0:
             max_err_threshold *= 1.1
-        #io.imshow(image)
-        #io.show()
+        io.imshow(image)
+        io.show()
 
 def do_efros(sample, new_x, new_y, window_size):
     err_threshold = 0.1
