@@ -113,10 +113,10 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
             break
         for pixel in pixel_list:
             template = get_neighborwind(image, window_size, pixel)
-            start = time.time()
+            #start = time.time()
             matches_list = find_matches(template,image, sample, visited_mat, window_size, pixel, err_threshold, gauss_mask)
-            end = time.time()
-            print end - start
+            #end = time.time()
+            #print end - start
             match_pixel = matches_list[random.randrange(len(matches_list))]
             if match_pixel[2] < max_err_threshold:
                 image[pixel[0],pixel[1]] = sample[match_pixel[0], match_pixel[1]]
