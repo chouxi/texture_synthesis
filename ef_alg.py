@@ -56,7 +56,7 @@ def get_neighborwind(image, window_size, pixel):
     # return indexs instead of the matrix
     return [max(0, pixel[0] - margin),min(x, pixel[0]+1 + margin), max(0, pixel[1]-margin),min(y,pixel[1]+1+margin)]
     
-def find_matches(template, image, sample,visited_mat, window_size, center, err_threshold,gauss_mask):
+def find_matches(template, image, sample,visited_mat, window_size, center, err_threshold,gauss_mask, sample_block_list, coordinate_list):
     valid_mask = visited_mat[template[0]:template[1], template[2]: template[3]]
     template_block = image[template[0]:template[1], template[2]: template[3]]
     margin = window_size / 2
@@ -66,6 +66,8 @@ def find_matches(template, image, sample,visited_mat, window_size, center, err_t
         print "[ERROR] gauss_mask shape " + str(gauss_mask.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +""
     weight_mat = np.multiply(gauss_mask, valid_mask)
     total_weight = weight_mat.sum()
+    weight_mat = weight_mat / total_weight
+    '''
     sample_size = sample.shape
     SSD = np.zeros((sample_size[0] - 2*margin, sample_size[1]-2*margin))
     for x in range(margin, sample_size[0]-margin):
@@ -76,12 +78,31 @@ def find_matches(template, image, sample,visited_mat, window_size, center, err_t
             if sample_block.shape != valid_mask.shape:
                 print "[ERROR] sample_block shape " + str(sample_block.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +"."
             SSD[x-margin,y-margin] = (np.multiply(weight_mat, np.square(template_block-sample_block)).sum()) / total_weight
+    '''
+    template_block_list = np.tile(template_block, (len(sample_block_list),1,1))
+    SSD = np.sum(np.sum(np.multiply(weight_mat, np.square(template_block_list - sample_block_list)), axis=1), axis=1)
+    '''
+    SSD = np.zeros((len(sample_block_list), 1))
+    i = 0
+    for sample_block in sample_block_list[:,0]:
+        sample_block = sample_block[0,0]
+        sample_block = sample_block[template[0] - (center[0]-margin):window_size + (template[1] - (center[0] + 1 + margin)), template[2] - (center[1]-margin):window_size + (template[3] - (center[1] + 1 + margin))]
+        if sample_block.shape != valid_mask.shape:
+            print "[ERROR] sample_block shape " + str(sample_block.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +"."
+        SSD[i] = np.multiply(weight_mat, np.square(template_block - sample_block)).sum()
+        i += 1
+    '''
     threshold= SSD.min()*(1+err_threshold)
     pixel_list = []
+    '''
     for x in range(SSD.shape[0]):
         for y in range(SSD.shape[1]):
             if SSD[x,y] <= threshold:
-                pixel_list.append((x + margin,y + margin,SSD[x,y]))
+                pixel_list.append(((x + margin,y + margin),SSD[x,y]))
+    '''
+    for error,coor in zip(SSD, coordinate_list):
+        if error <= threshold:
+            pixel_list.append((coor, error))
     return pixel_list
 
 def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold):
@@ -90,6 +111,14 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
         window_size += 1
     sigma = window_size / 6.4
     gauss_mask =gaussian2D(window_size, sigma)
+    margin = window_size / 2
+    sample_size = sample.shape
+    sample_block_list = []
+    coordinate_list = []
+    for x in range(margin, sample_size[0]-margin):
+        for y in range(margin, sample_size[1] -margin):
+            sample_block_list.append(sample[(x - margin):(x+1 + margin),(y-margin):(y+1+margin)])
+            coordinate_list.append((x,y))
     while 1:
         flag = 0
         pixel_list = get_unfilled_neighbor(visited_mat)
@@ -97,13 +126,13 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
             break
         for pixel in pixel_list:
             template = get_neighborwind(image, window_size, pixel)
-            start = time.time()
-            matches_list = find_matches(template,image, sample, visited_mat, window_size, pixel, err_threshold, gauss_mask)
-            end = time.time()
-            print end - start
+            #start = time.time()
+            matches_list = find_matches(template,image, sample, visited_mat, window_size, pixel, err_threshold, gauss_mask, np.asarray(sample_block_list), coordinate_list)
+            #end = time.time()
+            #print end - start
             match_pixel = matches_list[random.randrange(len(matches_list))]
-            if match_pixel[2] < max_err_threshold:
-                image[pixel[0],pixel[1]] = sample[match_pixel[0], match_pixel[1]]
+            if match_pixel[1] < max_err_threshold:
+                image[pixel[0],pixel[1]] = sample[match_pixel[0]]
                 visited_mat[pixel[0],pixel[1]] = 1
                 flag = 1
         if flag == 0:
@@ -115,8 +144,6 @@ def do_efros(sample, new_x, new_y, window_size):
     err_threshold = 0.1
     max_err_threshold = 0.3
     size = sample.shape
-    if new_x < size[0] or new_y < size[1]:
-        print '[ERROR] new size smaller than sample'
     #init mats
     image = np.zeros((new_x,new_y))
     visited_mat = np.zeros((new_x,new_y))
@@ -133,4 +160,7 @@ def do_efros(sample, new_x, new_y, window_size):
 
 if __name__ == '__main__':
     sample = io.imread('./pics/T1.gif')
+    start = time.time()
     do_efros(sample, 200, 200, 5)
+    end = time.time()
+    print end - start
