@@ -48,21 +48,6 @@ def get_unfilled_neighbor(visited_mat):
     unfilled_list = []
     for key in count_list:
         unfilled_list += count_dict[key]
-    '''
-    # plain brute implementation
-    direction = [(0,1), (0,-1), (-1,0), (1,0),(-1,1),(1,1),(-1,-1),(1,-1)]
-    x, y = visited_mat.shape
-    unfilled_list = []
-    for i in range(x):
-        for j in range(y):
-            if visited_mat[i][j] == 0:
-                for k in range(len(direction)):
-                    diff_x = direction[k][0]
-                    diff_y = direction[k][1]
-                    if i + diff_x >= 0 and i + diff_x < (x - 1) and j+diff_y >= 0 and j + diff_y < (y-1) and visited_mat[i+diff_x][j + diff_y] == 1:
-                        unfilled_list.append((i, j))
-                        break
-    '''
     return unfilled_list
 
 def get_neighborwind(image, window_size, pixel):
@@ -136,10 +121,12 @@ def do_efros(sample, new_x, new_y, window_size):
     image = np.zeros((new_x,new_y))
     visited_mat = np.zeros((new_x,new_y))
     # put sample into the image 
-    start_x = new_x / 2 - size[0]/2
-    start_y = new_y / 2 - size[1]/2
-    image[start_x: (start_x + size[0]), start_y:(start_y + size[1])] = sample
-    visited_mat[start_x: (start_x + size[0]), start_y:(start_y + size[1])] = 1
+    start_x = new_x / 2 - 1
+    start_y = new_y / 2 - 1
+    rand_x = random.randrange(size[0]-3)
+    rand_y = random.randrange(size[1]-3)
+    image[start_x: (start_x + 3), start_y:(start_y + 3)] = sample[rand_x: rand_x+3, rand_y:rand_y + 3]
+    visited_mat[start_x: (start_x + 3), start_y:(start_y + 3)] = 1
     grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold)
     io.imshow(image, cmap='gray')
     io.show()
