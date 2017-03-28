@@ -17,16 +17,19 @@ import random
 import time
 from scipy import signal
 
-def gaussian2D(size, sigma = 1, center=None):
-    x = np.arange(0, size, 1, float)
-    y = x[:,np.newaxis]
-
-    if center is None:
-        x0 = y0 = size // 2
-    else:
-        x0 = center[0]
-        y0 = center[1]
-    return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / sigma**2)
+def gaussian2D(shape, sigma = 1, center=None):
+    """
+    2D gaussian mask - should give the same result as MATLAB's
+    fspecial('gaussian',[shape],[sigma])
+    """
+    m,n = [(ss-1.)/2. for ss in shape]
+    y,x = np.ogrid[-m:m+1,-n:n+1]
+    h = np.exp( -(x*x + y*y) / (2.*sigma*sigma) )
+    h[ h < np.finfo(h.dtype).eps*h.max() ] = 0
+    sumh = h.sum()
+    if sumh != 0:
+        h /= sumh
+    return h
 
 def get_unfilled_neighbor(visited_mat, margin):
     count_mask = np.ones((3,3))
@@ -44,7 +47,7 @@ def get_unfilled_neighbor(visited_mat, margin):
             else:
                 count_dict.setdefault(count, [(i,j)])
     count_list = count_dict.keys()
-    count_list.sort()
+    count_list.sort(reverse=True)
     unfilled_list = []
     for key in count_list:
         unfilled_list += count_dict[key]
@@ -63,9 +66,8 @@ def find_matches(template, image, sample,visited_mat, err_threshold,gauss_mask, 
         print "[ERROR] gauss_mask shape " + str(gauss_mask.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +""
     weight_mat = np.multiply(gauss_mask, valid_mask)
     total_weight = weight_mat.sum()
-    weight_mat = weight_mat / total_weight
     template_block_list = np.tile(template_block, (len(sample_block_list),1,1))
-    SSD = np.sum(np.sum(np.multiply(weight_mat, np.square(template_block_list - sample_block_list)), axis=1), axis=1)
+    SSD = np.sum(np.sum(np.multiply(weight_mat, np.square(template_block_list - sample_block_list)), axis=1), axis=1) / total_weight
     threshold= SSD.min()*(1+err_threshold)
     pixel_list = []
     for error,coor in zip(SSD, coordinate_list):
@@ -76,7 +78,7 @@ def find_matches(template, image, sample,visited_mat, err_threshold,gauss_mask, 
 def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold, margin):
     # get gauss2D
     sigma = window_size / 6.4
-    gauss_mask =gaussian2D(window_size, sigma)
+    gauss_mask =gaussian2D((window_size, window_size), sigma)
     # get sample block list
     sample_size = sample.shape
     sample_block_list = []
@@ -89,7 +91,6 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
     while 1:
         flag = 0
         pixel_list = get_unfilled_neighbor(visited_mat, margin)
-        print len(pixel_list)
         if len(pixel_list) == 0:
             break
         for pixel in pixel_list:
@@ -98,7 +99,10 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
             matches_list = find_matches(template, image, sample, visited_mat, err_threshold, gauss_mask, np.asarray(sample_block_list), coordinate_list)
             #end = time.time()
             #print end - start
-            match_pixel = matches_list[random.randrange(len(matches_list))]
+            if matches_list == 1:
+                match_pixel = matches_list[0]
+            else:
+                match_pixel = matches_list[random.randrange(len(matches_list))]
             if match_pixel[1] < max_err_threshold:
                 image[pixel[0],pixel[1]] = sample[match_pixel[0]]
                 visited_mat[pixel[0],pixel[1]] = 1
@@ -131,13 +135,14 @@ def do_efros(sample, new_x, new_y, window_size):
     image[start_x: (start_x + 3), start_y:(start_y + 3)] = sample[rand_x: rand_x+3, rand_y:rand_y + 3]
     visited_mat[start_x: (start_x + 3), start_y:(start_y + 3)] = 1
     grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold, margin)
-    image = image[margin: new_x - margin, margin: new_y - margin]
-    io.imshow(image, cmap='gray')
+    image = image[margin: new_x - margin, margin: new_y - margin] *255
+    #io.imshow(image, cmap='gray')
+    io.imshow(image)
     io.show()
 
 if __name__ == '__main__':
     sample = io.imread('./pics/T1.gif').astype('float64')
-    #start = time.time()
-    do_efros(sample, 200, 200, 5)
-    #end = time.time()
-    #print end - start
+    start = time.time()
+    do_efros(sample, 200, 200, 11)
+    end = time.time()
+    print end - start
