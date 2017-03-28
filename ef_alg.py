@@ -55,7 +55,7 @@ def get_neighborwind(image, window_size, pixel, margin):
     # return indexs instead of the matrix
     return [pixel[0] - margin, pixel[0]+1 + margin, pixel[1]-margin, pixel[1]+1+margin]
     
-def find_matches(template, image, sample,visited_mat, window_size, margin, center, err_threshold,gauss_mask, sample_block_list, coordinate_list):
+def find_matches(template, image, sample,visited_mat, err_threshold,gauss_mask, sample_block_list, coordinate_list):
     valid_mask = visited_mat[template[0]:template[1], template[2]: template[3]]
     template_block = image[template[0]:template[1], template[2]: template[3]]
     # get the gauss_mask, shift it make it same to the shape of valid_mask
@@ -89,12 +89,13 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
     while 1:
         flag = 0
         pixel_list = get_unfilled_neighbor(visited_mat, margin)
+        print len(pixel_list)
         if len(pixel_list) == 0:
             break
         for pixel in pixel_list:
             template = get_neighborwind(image, window_size, pixel, margin)
             #start = time.time()
-            matches_list = find_matches(template, image, sample, visited_mat, window_size, margin, pixel, err_threshold, gauss_mask, np.asarray(sample_block_list), coordinate_list)
+            matches_list = find_matches(template, image, sample, visited_mat, err_threshold, gauss_mask, np.asarray(sample_block_list), coordinate_list)
             #end = time.time()
             #print end - start
             match_pixel = matches_list[random.randrange(len(matches_list))]
@@ -110,9 +111,6 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
 def do_efros(sample, new_x, new_y, window_size):
     # normalize
     sample *= (1.0/sample.max())
-    for (x,y),v in np.ndenumerate(sample):
-        if v > 1 or v < 0:
-            print "[ERROR] normal failed"
     err_threshold = 0.1
     max_err_threshold = 0.3
     # window_size need to be odd number
