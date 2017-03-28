@@ -17,7 +17,7 @@ import random
 import time
 from scipy import signal
 
-def gaussian2D(shape, sigma = 1, center=None):
+def gaussian2D(shape, sigma = 1):
     """
     2D gaussian mask - should give the same result as MATLAB's
     fspecial('gaussian',[shape],[sigma])
