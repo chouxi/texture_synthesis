@@ -6,7 +6,7 @@
 #         Email: qizheng1993hit@gmail.com
 #      HomePage: https://github.com/chouxi
 #       Version: 0.0.1
-#    LastChange: 2017-03-21 18:55:58
+#    LastChange: 2017-03-28 10:56:33
 #       History:
 # =============================================================================
 '''
@@ -64,39 +64,10 @@ def find_matches(template, image, sample,visited_mat, window_size, margin, cente
     weight_mat = np.multiply(gauss_mask, valid_mask)
     total_weight = weight_mat.sum()
     weight_mat = weight_mat / total_weight
-    '''
-    sample_size = sample.shape
-    SSD = np.zeros((sample_size[0] - 2*margin, sample_size[1]-2*margin))
-    for x in range(margin, sample_size[0]-margin):
-        for y in range(margin, sample_size[1] -margin):
-            sample_block = sample[(x - margin):(x+1 + margin),(y-margin):(y+1+margin)]
-            # shift sample_block to the same as template
-            sample_block = sample_block[template[0] - (center[0]-margin):window_size + (template[1] - (center[0] + 1 + margin)), template[2] - (center[1]-margin):window_size + (template[3] - (center[1] + 1 + margin))]
-            if sample_block.shape != valid_mask.shape:
-                print "[ERROR] sample_block shape " + str(sample_block.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +"."
-            SSD[x-margin,y-margin] = (np.multiply(weight_mat, np.square(template_block-sample_block)).sum()) / total_weight
-    '''
     template_block_list = np.tile(template_block, (len(sample_block_list),1,1))
     SSD = np.sum(np.sum(np.multiply(weight_mat, np.square(template_block_list - sample_block_list)), axis=1), axis=1)
-    '''
-    SSD = np.zeros((len(sample_block_list), 1))
-    i = 0
-    for sample_block in sample_block_list[:,0]:
-        sample_block = sample_block[0,0]
-        sample_block = sample_block[template[0] - (center[0]-margin):window_size + (template[1] - (center[0] + 1 + margin)), template[2] - (center[1]-margin):window_size + (template[3] - (center[1] + 1 + margin))]
-        if sample_block.shape != valid_mask.shape:
-            print "[ERROR] sample_block shape " + str(sample_block.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +"."
-        SSD[i] = np.multiply(weight_mat, np.square(template_block - sample_block)).sum()
-        i += 1
-    '''
     threshold= SSD.min()*(1+err_threshold)
     pixel_list = []
-    '''
-    for x in range(SSD.shape[0]):
-        for y in range(SSD.shape[1]):
-            if SSD[x,y] <= threshold:
-                pixel_list.append(((x + margin,y + margin),SSD[x,y]))
-    '''
     for error,coor in zip(SSD, coordinate_list):
         if error <= threshold:
             pixel_list.append((coor, error))
@@ -137,6 +108,11 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
         #io.show()
 
 def do_efros(sample, new_x, new_y, window_size):
+    # normalize
+    sample *= (1.0/sample.max())
+    for (x,y),v in np.ndenumerate(sample):
+        if v > 1 or v < 0:
+            print "[ERROR] normal failed"
     err_threshold = 0.1
     max_err_threshold = 0.3
     # window_size need to be odd number
@@ -162,8 +138,8 @@ def do_efros(sample, new_x, new_y, window_size):
     io.show()
 
 if __name__ == '__main__':
-    sample = io.imread('./pics/T1.gif')
+    sample = io.imread('./pics/T1.gif').astype('float64')
     #start = time.time()
-    do_efros(sample, 50, 50, 5)
+    do_efros(sample, 200, 200, 5)
     #end = time.time()
     #print end - start
