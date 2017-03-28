@@ -28,7 +28,7 @@ def gaussian2D(size, sigma = 1, center=None):
         y0 = center[1]
     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / sigma**2)
 
-def get_unfilled_neighbor(visited_mat):
+def get_unfilled_neighbor(visited_mat, margin):
     count_mask = np.ones((3,3))
     count_mask[1][1] = 0
     dilation_mat = np.ones((3,3))
@@ -36,9 +36,9 @@ def get_unfilled_neighbor(visited_mat):
     count_dict = {}
     x,y = dilation_mask.shape
     for (i,j),v in np.ndenumerate(dilation_mask):
-        if v == 1:
-            tmp = visited_mat[max(0, i-1):min(i+2,x) , max(0, j-1):min(y,j+2)]
-            count = int(np.multiply(tmp, count_mask[max(0, 1-i):min(3, 3+min(x-i-2, 0)), max(0, 1-j):min(3, 3+min(y-j-2, 0))]).sum())
+        if v == 1 and i >= margin and i < x - margin and j >= margin and j < y-margin:
+            tmp = visited_mat[i-1:i+2 , j-1:j+2]
+            count = int(np.multiply(tmp, count_mask).sum())
             if count_dict.has_key(count):
                 count_dict[count].append((i,j))
             else:
@@ -50,18 +50,15 @@ def get_unfilled_neighbor(visited_mat):
         unfilled_list += count_dict[key]
     return unfilled_list
 
-def get_neighborwind(image, window_size, pixel):
+def get_neighborwind(image, window_size, pixel, margin):
     x,y = image.shape
-    margin = window_size / 2
     # return indexs instead of the matrix
-    return [max(0, pixel[0] - margin),min(x, pixel[0]+1 + margin), max(0, pixel[1]-margin),min(y,pixel[1]+1+margin)]
+    return [pixel[0] - margin, pixel[0]+1 + margin, pixel[1]-margin, pixel[1]+1+margin]
     
-def find_matches(template, image, sample,visited_mat, window_size, center, err_threshold,gauss_mask, sample_block_list, coordinate_list):
+def find_matches(template, image, sample,visited_mat, window_size, margin, center, err_threshold,gauss_mask, sample_block_list, coordinate_list):
     valid_mask = visited_mat[template[0]:template[1], template[2]: template[3]]
     template_block = image[template[0]:template[1], template[2]: template[3]]
-    margin = window_size / 2
     # get the gauss_mask, shift it make it same to the shape of valid_mask
-    gauss_mask = gauss_mask[template[0] - (center[0]-margin):window_size + (template[1] - (center[0] + 1 + margin)), template[2] - (center[1]-margin):window_size + (template[3] - (center[1] + 1 + margin))]
     if gauss_mask.shape != valid_mask.shape:
         print "[ERROR] gauss_mask shape " + str(gauss_mask.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +""
     weight_mat = np.multiply(gauss_mask, valid_mask)
@@ -105,15 +102,14 @@ def find_matches(template, image, sample,visited_mat, window_size, center, err_t
             pixel_list.append((coor, error))
     return pixel_list
 
-def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold):
-    # window_size need to be odd number
-    if window_size & 1 == 0:
-        window_size += 1
+def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold, margin):
+    # get gauss2D
     sigma = window_size / 6.4
     gauss_mask =gaussian2D(window_size, sigma)
-    margin = window_size / 2
+    # get sample block list
     sample_size = sample.shape
     sample_block_list = []
+    # get coorsponding coordinate
     coordinate_list = []
     for x in range(margin, sample_size[0]-margin):
         for y in range(margin, sample_size[1] -margin):
@@ -121,13 +117,13 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
             coordinate_list.append((x,y))
     while 1:
         flag = 0
-        pixel_list = get_unfilled_neighbor(visited_mat)
+        pixel_list = get_unfilled_neighbor(visited_mat, margin)
         if len(pixel_list) == 0:
             break
         for pixel in pixel_list:
-            template = get_neighborwind(image, window_size, pixel)
+            template = get_neighborwind(image, window_size, pixel, margin)
             #start = time.time()
-            matches_list = find_matches(template,image, sample, visited_mat, window_size, pixel, err_threshold, gauss_mask, np.asarray(sample_block_list), coordinate_list)
+            matches_list = find_matches(template, image, sample, visited_mat, window_size, margin, pixel, err_threshold, gauss_mask, np.asarray(sample_block_list), coordinate_list)
             #end = time.time()
             #print end - start
             match_pixel = matches_list[random.randrange(len(matches_list))]
@@ -137,30 +133,37 @@ def grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_t
                 flag = 1
         if flag == 0:
             max_err_threshold *= 1.1
-        io.imshow(image)
-        io.show()
+        #io.imshow(image)
+        #io.show()
 
 def do_efros(sample, new_x, new_y, window_size):
     err_threshold = 0.1
     max_err_threshold = 0.3
-    size = sample.shape
+    # window_size need to be odd number
+    if window_size & 1 == 0:
+        window_size += 1
+    margin = window_size / 2
+    sample_x, sample_y = sample.shape
+    new_x += margin*2
+    new_y += margin*2
     #init mats
     image = np.zeros((new_x,new_y))
     visited_mat = np.zeros((new_x,new_y))
     # put sample into the image 
     start_x = new_x / 2 - 1
     start_y = new_y / 2 - 1
-    rand_x = random.randrange(size[0]-3)
-    rand_y = random.randrange(size[1]-3)
+    rand_x = random.randrange(sample_x-3)
+    rand_y = random.randrange(sample_y-3)
     image[start_x: (start_x + 3), start_y:(start_y + 3)] = sample[rand_x: rand_x+3, rand_y:rand_y + 3]
     visited_mat[start_x: (start_x + 3), start_y:(start_y + 3)] = 1
-    grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold)
+    grow_image(sample, image, visited_mat, window_size, err_threshold, max_err_threshold, margin)
+    image = image[margin: new_x - margin, margin: new_y - margin]
     io.imshow(image, cmap='gray')
     io.show()
 
 if __name__ == '__main__':
     sample = io.imread('./pics/T1.gif')
-    start = time.time()
-    do_efros(sample, 200, 200, 5)
-    end = time.time()
-    print end - start
+    #start = time.time()
+    do_efros(sample, 50, 50, 5)
+    #end = time.time()
+    #print end - start
