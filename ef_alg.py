@@ -15,47 +15,26 @@ from skimage import io, morphology
 import matplotlib.pyplot as plt
 import random
 import time
+from base_op import *
 
 class efros_algorithm:
     err_threshold = 0.1
     max_err_threshold = 0.3
-    window_size = 5
-    margin = 2
-    sample = np.ones((1,1))
-    visited_mat = np.zeros((1,1))
-    def __init__(self, file_name, window_size):
-        self.sample = io.imread(file_name).astype('float64')
-        # normalize
-        self.sample *= (1.0/self.sample.max())
-        # self.window_size need to be odd number
-        if self.window_size & 1 == 0:
-            self.window_size += 1
-        self.margin = self.window_size / 2
+    base_op = None
+    def __init__(self, base_op):
+        self.base_op = base_op
         
-    def __gaussian2D(self, shape, sigma = 1):
-        """
-        2D gaussian mask - should give the same result as MATLAB's
-        fspecial('gaussian',[shape],[sigma])
-        """
-        m,n = [(ss-1.)/2. for ss in shape]
-        y,x = np.ogrid[-m:m+1,-n:n+1]
-        h = np.exp( -(x*x + y*y) / (2.*sigma*sigma) )
-        h[ h < np.finfo(h.dtype).eps*h.max() ] = 0
-        sumh = h.sum()
-        if sumh != 0:
-            h /= sumh
-        return h
 
     def __get_unfilled_neighbor(self):
         count_mask = np.ones((3,3))
         count_mask[1][1] = 0
         dilation_mat = np.ones((3,3))
-        dilation_mask = morphology.dilation(self.visited_mat, selem=dilation_mat) - self.visited_mat
+        dilation_mask = morphology.dilation(self.base_op.visited_mat, selem=dilation_mat) - self.base_op.visited_mat
         count_dict = {}
         x,y = dilation_mask.shape
         for (i,j),v in np.ndenumerate(dilation_mask):
-            if v == 1 and i >= self.margin and i < x - self.margin and j >= self.margin and j < y-self.margin:
-                tmp = self.visited_mat[i-1:i+2 , j-1:j+2]
+            if v == 1 and i >= self.base_op.margin and i < x - self.base_op.margin and j >= self.base_op.margin and j < y-self.base_op.margin:
+                tmp = self.base_op.visited_mat[i-1:i+2 , j-1:j+2]
                 count = int(np.multiply(tmp, count_mask).sum())
                 if count_dict.has_key(count):
                     count_dict[count].append((i,j))
@@ -68,32 +47,10 @@ class efros_algorithm:
             unfilled_list += count_dict[key]
         return unfilled_list
 
-    def __get_neighborwind(self, image, pixel):
-        x,y = image.shape
-        # return indexs instead of the matrix
-        return [pixel[0] - self.margin, pixel[0]+1 + self.margin, pixel[1]-self.margin, pixel[1]+1+self.margin]
-        
-    def __find_matches(self, template, image, gauss_mask, sample_block_list, coordinate_list):
-        valid_mask = self.visited_mat[template[0]:template[1], template[2]: template[3]]
-        template_block = image[template[0]:template[1], template[2]: template[3]]
-        # get the gauss_mask, shift it make it same to the shape of valid_mask
-        if gauss_mask.shape != valid_mask.shape:
-            print "[ERROR] gauss_mask shape " + str(gauss_mask.shape) + " is not equal to the valid_mask shape " + str(valid_mask.shape) +""
-        weight_mat = np.multiply(gauss_mask, valid_mask)
-        total_weight = weight_mat.sum()
-        template_block_list = np.tile(template_block, (len(sample_block_list),1,1))
-        SSD = np.sum(np.sum(np.multiply(weight_mat, np.square(template_block_list - sample_block_list)), axis=1), axis=1) / total_weight
-        threshold= SSD.min()*(1+self.err_threshold)
-        pixel_list = []
-        for error,coor in zip(SSD, coordinate_list):
-            if error <= threshold:
-                pixel_list.append((coor, error))
-        return pixel_list
-
     def __grow_image(self, image, sample_block_list, coordinate_list):
         # get gauss2D
-        sigma = self.window_size / 6.4
-        gauss_mask = self.__gaussian2D((self.window_size, self.window_size), sigma)
+        sigma = self.base_op.window_size / 6.4
+        gauss_mask = self.base_op.gaussian2D((self.base_op.window_size, self.base_op.window_size), sigma)
         while 1:
             flag = 0
             pixel_list = self.__get_unfilled_neighbor()
@@ -101,9 +58,9 @@ class efros_algorithm:
             if len(pixel_list) == 0:
                 break
             for pixel in pixel_list:
-                template = self.__get_neighborwind(image, pixel)
+                template = self.base_op.get_neighborwind(image, pixel)
                 #start = time.time()
-                matches_list = self.__find_matches(template, image, gauss_mask, np.asarray(sample_block_list), coordinate_list)
+                matches_list = self.base_op.find_matches(template, image, gauss_mask, np.asarray(sample_block_list), coordinate_list, self.err_threshold)
                 #end = time.time()
                 #print end - start
                 if matches_list == 1:
@@ -111,8 +68,8 @@ class efros_algorithm:
                 else:
                     match_pixel = matches_list[random.randrange(len(matches_list))]
                 if match_pixel[1] < self.max_err_threshold:
-                    image[pixel[0],pixel[1]] = self.sample[match_pixel[0]]
-                    self.visited_mat[pixel[0],pixel[1]] = 1
+                    image[pixel[0],pixel[1]] = self.base_op.sample[match_pixel[0]]
+                    self.base_op.visited_mat[pixel[0],pixel[1]] = 1
                     flag = 1
             if flag == 0:
                 self.max_err_threshold *= 1.1
@@ -120,41 +77,41 @@ class efros_algorithm:
             #io.show()
 
     def efros_synthesis(self, new_x, new_y):
-        sample_x, sample_y = self.sample.shape
-        new_x += self.margin*2
-        new_y += self.margin*2
+        sample_x, sample_y = self.base_op.sample.shape
+        new_x += self.base_op.margin*2
+        new_y += self.base_op.margin*2
         #init mats
         image = np.zeros((new_x,new_y))
-        self.visited_mat = np.zeros((new_x,new_y))
+        self.base_op.visited_mat = np.zeros((new_x,new_y))
         # put sample into the image 
         start_x = new_x / 2 - 1
         start_y = new_y / 2 - 1
         rand_x = random.randrange(sample_x-3)
         rand_y = random.randrange(sample_y-3)
-        image[start_x: (start_x + 3), start_y:(start_y + 3)] = self.sample[rand_x: rand_x+3, rand_y:rand_y + 3]
-        self.visited_mat[start_x: (start_x + 3), start_y:(start_y + 3)] = 1
+        image[start_x: (start_x + 3), start_y:(start_y + 3)] = self.base_op.sample[rand_x: rand_x+3, rand_y:rand_y + 3]
+        self.base_op.visited_mat[start_x: (start_x + 3), start_y:(start_y + 3)] = 1
         # get sample block list
         sample_block_list = []
         # get coorsponding coordinate
         coordinate_list = []
-        for x in range(self.margin, sample_x - self.margin):
-            for y in range(self.margin, sample_y - self.margin):
-                sample_block_list.append(self.sample[(x - self.margin):(x+1 + self.margin),(y-self.margin):(y+1+self.margin)])
+        for x in range(self.base_op.margin, sample_x - self.base_op.margin):
+            for y in range(self.base_op.margin, sample_y - self.base_op.margin):
+                sample_block_list.append(self.base_op.sample[(x - self.base_op.margin):(x+1 + self.base_op.margin),(y-self.base_op.margin):(y+1+self.base_op.margin)])
                 coordinate_list.append((x,y))
         self.__grow_image(image, sample_block_list, coordinate_list)
-        image = image[self.margin: new_x - self.margin, self.margin: new_y - self.margin] *255
+        image = image[self.base_op.margin: new_x - self.base_op.margin, self.base_op.margin: new_y - self.base_op.margin] *255
         io.imshow(image, cmap='gray')
         io.show()
 
     def efros_impainting(self):
-        sample_x, sample_y = self.sample.shape
-        new_x = sample_x + self.margin*2
-        new_y = sample_y + self.margin*2
+        sample_x, sample_y = self.base_op.sample.shape
+        new_x = sample_x + self.base_op.margin*2
+        new_y = sample_y + self.base_op.margin*2
         # init mats
         image = np.zeros((new_x,new_y))
-        self.visited_mat = np.zeros((new_x,new_y))
+        self.base_op.visited_mat = np.zeros((new_x,new_y))
         # put sample into the image 
-        image[self.margin: new_x - self.margin, self.margin:new_y - self.margin] = self.sample
+        image[self.base_op.margin: new_x - self.base_op.margin, self.base_op.margin:new_y - self.base_op.margin] = self.base_op.sample
         # get sample block list
         sample_block_list = []
         # get coorsponding coordinate
@@ -162,25 +119,15 @@ class efros_algorithm:
         for (x,y),v in np.ndenumerate(image):
             if v == 0:
                 continue
-            tmp = self.sample[(x - self.margin):(x+1 + self.margin),(y-self.margin):(y+1+self.margin)]
+            tmp = self.base_op.sample[(x - self.base_op.margin):(x+1 + self.base_op.margin),(y-self.base_op.margin):(y+1+self.base_op.margin)]
             if tmp[tmp==0].shape[0] == 0:
                 sample_block_list.append(tmp)
                 coordinate_list.append((x,y))
-            self.visited_mat[x,y] = 1
+            self.base_op.visited_mat[x,y] = 1
         start = time.time()
         self.__grow_image(image, sample_block_list, coordinate_list)
         end = time.time()
         print end - start
-        image = image[self.margin: new_x - self.margin, self.margin: new_y - self.margin] *255
+        image = image[self.base_op.margin: new_x - self.base_op.margin, self.base_op.margin: new_y - self.base_op.margin] *255
         io.imshow(image, cmap='gray')
         io.show()
-
-if __name__ == '__main__':
-    #start = time.time()
-    #efros_synthesis(sample, 200, 200, 11)
-    #end = time.time()
-    #print end - start
-    efros_obj = efros_algorithm('./pics/test_im1.bmp', 5)
-    efros_obj.efros_impainting()
-    #efros_obj = efros_algorithm('./pics/T1.gif', 5)
-    #efros_obj.efros_synthesis(200, 200)
