@@ -13,10 +13,17 @@
 
 from base_op import *
 from ef_alg import *
+from criminis_alg import *
 
 if __name__ == '__main__':
+    '''
     base_op =  base_operation('./pics/T1.gif', 5)
     efros_obj = efros_algorithm(base_op)
     efros_obj.efros_synthesis(50, 50)
     #efros_obj = efros_algorithm('./pics/T1.gif', 5)
     #efros_obj.efros_synthesis(200, 200)
+    '''
+    # people
+    base_op =  base_operation('./pics/test_im3.jpg', 5)
+    criminis_obj = criminis_algorithm(base_op)
+    criminis_obj.remove_blocks([(352,485,223,253)])

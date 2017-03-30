@@ -10,8 +10,7 @@
 #       History:
 # =============================================================================
 '''
-import numpy as np
-from skimage import io, morphology
+from skimage import morphology
 import matplotlib.pyplot as plt
 import random
 import time

@@ -11,7 +11,7 @@
 # =============================================================================
 '''
 import numpy as np
-from skimage import io, morphology
+from skimage import io
 
 class base_operation:
     window_size = 5
@@ -46,7 +46,7 @@ class base_operation:
         # return indexs instead of the matrix
         return [pixel[0] - self.margin, pixel[0]+1 + self.margin, pixel[1]-self.margin, pixel[1]+1+self.margin]
         
-    def find_matches(self, template, image, gauss_mask, sample_block_list, coordinate_list, err_threshold = 0.0):
+    def find_matches(self, template, image, gauss_mask, sample_block_list, coordinate_list, err_threshold = -1.0):
         valid_mask = self.visited_mat[template[0]:template[1], template[2]: template[3]]
         template_block = image[template[0]:template[1], template[2]: template[3]]
         # get the gauss_mask, shift it make it same to the shape of valid_mask
@@ -57,7 +57,7 @@ class base_operation:
         template_block_list = np.tile(template_block, (len(sample_block_list),1,1))
         SSD = np.sum(np.sum(np.multiply(weight_mat, np.square(template_block_list - sample_block_list)), axis=1), axis=1) / total_weight
         threshold = SSD.min()
-        if err_threshold != 0.0:
+        if err_threshold != -1.0:
             threshold= threshold*(1+err_threshold)
             pixel_list = []
             for error,coor in zip(SSD, coordinate_list):
