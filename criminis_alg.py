@@ -21,6 +21,7 @@ class criminis_algorithm:
     isophote_x = None
     isophote_y = None
     boundary_mat = None
+    gauss_mask = None
     def __init__(self, base_op):
         self.base_op = base_op
         self.base_op.sample = color.rgb2gray(self.base_op.sample)
@@ -43,6 +44,8 @@ class criminis_algorithm:
         margin = self.base_op.margin
         self.isophote_x = filters.scharr_h(self.origin_sample)
         self.isophote_y = filters.scharr_v(self.origin_sample)
+        io.imshow(self.isophote_y)
+        io.show()
         self.image = np.zeros((enlarge_x, enlarge_y))
         self.image[margin: enlarge_x - margin, margin: enlarge_y - margin] = self.base_op.sample
         # specified for boundary and gradient get
@@ -58,8 +61,11 @@ class criminis_algorithm:
             tmp = self.base_op.sample[(x - self.base_op.margin):(x+1 + self.base_op.margin),(y-self.base_op.margin):(y+1+self.base_op.margin)]
             if tmp[tmp==0].shape[0] == 0:
                 sample_block_list.append(tmp)
-                coordinate_list.append((x,y))
+                # shift to sample coordinate
+                coordinate_list.append((x-self.base_op.margin,y-self.base_op.margin))
             self.base_op.visited_mat[x,y] = 1
+        sigma = self.base_op.window_size / 6.4
+        self.gauss_mask = self.base_op.gaussian2D((self.base_op.window_size,self.base_op.window_size), sigma)
         return [sample_block_list, coordinate_list]
         
     def __get_priority(self, unfilled_list):
@@ -99,9 +105,14 @@ class criminis_algorithm:
 
     def do_criminis(self):
         sample_block_list, coordinate_list = self.__init_mats()
+        margin = self.base_op.margin
         while 1:
             unfilled_list = self.__get_unfilled_list()
             if len(unfilled_list) == 0:
                 break
-            self.__get_priority(unfilled_list)
+            pixel = self.__get_priority(unfilled_list)
+            #print self.image[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
+            #print self.base_op.visited_mat[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
+            best_pixel = self.base_op.find_matches([pixel[0]-margin, pixel[0] + 1 + margin, pixel[1] - margin, pixel[1] + 1 + margin], self.image, self.gauss_mask, np.asarray(sample_block_list), coordinate_list)
+            print self.origin_sample[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
             break

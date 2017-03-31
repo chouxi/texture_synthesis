@@ -120,7 +120,7 @@ class efros_algorithm:
             tmp = self.base_op.sample[(x - self.base_op.margin):(x+1 + self.base_op.margin),(y-self.base_op.margin):(y+1+self.base_op.margin)]
             if tmp[tmp==0].shape[0] == 0:
                 sample_block_list.append(tmp)
-                coordinate_list.append((x,y))
+                coordinate_list.append((x-self.base_op.margin,y-self.base_op.margin))
             self.base_op.visited_mat[x,y] = 1
         start = time.time()
         self.__grow_image(image, sample_block_list, coordinate_list)
