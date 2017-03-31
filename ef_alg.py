@@ -10,7 +10,6 @@
 #       History:
 # =============================================================================
 '''
-from skimage import morphology
 import matplotlib.pyplot as plt
 import random
 import time
@@ -58,10 +57,10 @@ class efros_algorithm:
                 break
             for pixel in pixel_list:
                 template = self.base_op.get_neighborwind(image, pixel)
-                #start = time.time()
+                start = time.time()
                 matches_list = self.base_op.find_matches(template, image, gauss_mask, np.asarray(sample_block_list), coordinate_list, self.err_threshold)
-                #end = time.time()
-                #print end - start
+                end = time.time()
+                print end - start
                 if matches_list == 1:
                     match_pixel = matches_list[0]
                 else:

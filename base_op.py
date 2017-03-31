@@ -11,7 +11,7 @@
 # =============================================================================
 '''
 import numpy as np
-from skimage import io
+from skimage import io, morphology
 
 class base_operation:
     window_size = 5
