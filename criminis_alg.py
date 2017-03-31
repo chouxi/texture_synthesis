@@ -56,11 +56,10 @@ class criminis_algorithm:
         for (x,y),v in np.ndenumerate(self.image):
             if v == 0:
                 continue
-            tmp = self.base_op.sample[(x - self.base_op.margin):(x+1 + self.base_op.margin),(y-self.base_op.margin):(y+1+self.base_op.margin)]
+            tmp = self.image[(x - margin):(x+1 + margin),(y-margin):(y+1+margin)]
             if tmp[tmp==0].shape[0] == 0:
                 sample_block_list.append(tmp)
-                # shift to sample coordinate
-                coordinate_list.append((x-self.base_op.margin,y-self.base_op.margin))
+                coordinate_list.append((x - margin,y - margin))
             self.base_op.visited_mat[x,y] = 1
         sigma = self.base_op.window_size / 6.4
         self.gauss_mask = self.base_op.gaussian2D((self.base_op.window_size,self.base_op.window_size), sigma)
@@ -109,8 +108,12 @@ class criminis_algorithm:
             if len(unfilled_list) == 0:
                 break
             pixel = self.__get_priority(unfilled_list)
+            template = (pixel[0] - self.base_op.margin, pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin, pixel[1] + 1 + self.base_op.margin)
             #print self.image[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
             #print self.base_op.visited_mat[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
-            print ~self.base_op.visited_mat[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
-            #best_pixel = self.base_op.find_matches([pixel[0]-margin, pixel[0] + 1 + margin, pixel[1] - margin, pixel[1] + 1 + margin], self.image, self.gauss_mask, np.asarray(sample_block_list), coordinate_list)
+            best_pixel = self.base_op.find_matches(template, self.image, self.gauss_mask, np.asarray(sample_block_list), coordinate_list)
+            self.image[template[0]:template[1], template[2]:template[3]] += np.multiply(self.base_op.sample[best_pixel[0]-margin:best_pixel[0]+1+margin, best_pixel[1]-margin: best_pixel[1]+1+margin], visited_mat[template[0]:template[1], template[2]: template[3]])
+            self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] += abs(self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] - 1)
+            self.boundary_mat[template[0]-self.base_op.margin: template[1] - self.base_op.margin, template[2] - self.base_op.margin: template[3] - self.base_op.margin] += abs(self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] - 1)
+            print self.image[template[0]:template[1], template[2]:template[3]]
             break
