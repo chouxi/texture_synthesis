@@ -24,7 +24,7 @@ if __name__ == '__main__':
     #efros_obj.efros_synthesis(200, 200)
     '''
     # people
-    base_op =  base_operation('./pics/test_im3.jpg', 5)
+    base_op =  base_operation('./pics/test_im3.jpg', 9)
     criminis_obj = criminis_algorithm(base_op)
     criminis_obj.remove_blocks([(352,485,223,253)])
     criminis_obj.do_criminis()

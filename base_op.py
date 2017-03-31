@@ -10,6 +10,7 @@
 #       History:
 # =============================================================================
 '''
+import time
 import numpy as np
 from skimage import io, morphology
 

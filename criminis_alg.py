@@ -88,7 +88,7 @@ class criminis_algorithm:
                 dy /= norm
             data = math.fabs(dx*iso_dx + dy*iso_dy)
             priority = data*confidence
-            if priority > min_priority:
+            if priority >= min_priority:
                 min_pixel = pixel
                 min_priority = priority
         return min_pixel
@@ -103,6 +103,7 @@ class criminis_algorithm:
     def do_criminis(self):
         sample_block_list, coordinate_list = self.__init_mats()
         margin = self.base_op.margin
+        test = filters.laplace(np.ones((3,3)))
         while 1:
             unfilled_list = self.__get_unfilled_list()
             if len(unfilled_list) == 0:
@@ -110,10 +111,15 @@ class criminis_algorithm:
             pixel = self.__get_priority(unfilled_list)
             template = (pixel[0] - self.base_op.margin, pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin, pixel[1] + 1 + self.base_op.margin)
             #print self.image[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
-            #print self.base_op.visited_mat[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
-            best_pixel = self.base_op.find_matches(template, self.image, self.gauss_mask, np.asarray(sample_block_list), coordinate_list)
-            self.image[template[0]:template[1], template[2]:template[3]] += np.multiply(self.base_op.sample[best_pixel[0]-margin:best_pixel[0]+1+margin, best_pixel[1]-margin: best_pixel[1]+1+margin], visited_mat[template[0]:template[1], template[2]: template[3]])
-            self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] += abs(self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] - 1)
-            self.boundary_mat[template[0]-self.base_op.margin: template[1] - self.base_op.margin, template[2] - self.base_op.margin: template[3] - self.base_op.margin] += abs(self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] - 1)
-            print self.image[template[0]:template[1], template[2]:template[3]]
-            break
+            #print self.base_op.visited_mat[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
+            start = time.time()
+            best_pixel,error = self.base_op.find_matches(template, self.image, self.gauss_mask, np.asarray(sample_block_list), coordinate_list)
+            end = time.time()
+            print end- start
+            inver_visit = abs(self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] - 1)
+            self.image[template[0]:template[1], template[2]:template[3]] += np.multiply(self.base_op.sample[best_pixel[0]-margin:best_pixel[0]+1+margin, best_pixel[1]-margin: best_pixel[1]+1+margin], inver_visit)
+            self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] += inver_visit 
+            self.boundary_mat[template[0]: template[1], template[2]: template[3]] += inver_visit
+        self.image = self.image[self.base_op.margin: self.image.shape[0] - self.base_op.margin, self.base_op.margin: self.image.shape[1] - self.base_op.margin] *255
+        io.imshow(self.image, cmap='gray')
+        io.show()
