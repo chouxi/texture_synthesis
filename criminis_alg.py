@@ -17,6 +17,8 @@ import math
 class criminis_algorithm:
     base_op = None
     image = None
+    image_rgb = None
+    sample_rgb = None
     origin_sample = None
     isophote_x = None
     isophote_y = None
@@ -24,6 +26,8 @@ class criminis_algorithm:
     gauss_mask = None
     def __init__(self, base_op):
         self.base_op = base_op
+        self.sample_rgb = self.base_op.sample
+        self.image_rgb = self.base_op.sample
         self.base_op.sample = color.rgb2gray(self.base_op.sample)
         self.origin_sample = self.base_op.sample
 
@@ -36,9 +40,12 @@ class criminis_algorithm:
                 print "[ERROR] input block invalid"
             visited_mat[block[0]:block[1], block[2]:block[3]] = 0
         self.base_op.sample = np.multiply(self.base_op.sample, visited_mat)
+        for (x,y),v in np.ndenumerate(visited_mat):
+            if v == 0:
+                self.image_rgb[x,y] = (0,0,0)
         self.base_op.visited_mat = np.zeros((sample_x + margin * 2, sample_y+ margin*2))
         self.base_op.visited_mat[margin:sample_x + margin, margin: sample_y + margin] = visited_mat
-        io.imshow(self.base_op.sample)
+        io.imshow(self.image_rgb)
         io.show()
     
     def __init_mats(self):
@@ -120,9 +127,18 @@ class criminis_algorithm:
             end = time.time()
             print end- start
             inver_visit = abs(self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] - 1)
+            inver_visit_rgb = np.ones((self.base_op.window_size,self.base_op.window_size,3))
+            for (x,y),v in np.ndenumerate(inver_visit):
+                if v == 1:
+                    inver_visit_rgb[x,y] = np.array([1,1,1])
+                else:
+                    inver_visit_rgb[x,y] = np.array([0,0,0])
             self.image[template[0]:template[1], template[2]:template[3]] += np.multiply(self.base_op.sample[best_pixel[0]-margin:best_pixel[0]+1+margin, best_pixel[1]-margin: best_pixel[1]+1+margin], inver_visit)
+            self.image_rgb[template[0] - margin:template[1] - margin, template[2] - margin:template[3] - margin] += np.multiply(self.sample_rgb[best_pixel[0]-margin:best_pixel[0]+1+margin, best_pixel[1]-margin: best_pixel[1]+1+margin], inver_visit_rgb)
             self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] += inver_visit 
             self.boundary_mat[template[0]: template[1], template[2]: template[3]] += inver_visit
         self.image = self.image[self.base_op.margin: self.image.shape[0] - self.base_op.margin, self.base_op.margin: self.image.shape[1] - self.base_op.margin] *255
+        io.imshow(self.image_rgb)
+        io.show()
         io.imshow(self.image, cmap='gray')
         io.show()
