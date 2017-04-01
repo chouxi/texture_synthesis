@@ -38,6 +38,8 @@ class criminis_algorithm:
         self.base_op.sample = np.multiply(self.base_op.sample, visited_mat)
         self.base_op.visited_mat = np.zeros((sample_x + margin * 2, sample_y+ margin*2))
         self.base_op.visited_mat[margin:sample_x + margin, margin: sample_y + margin] = visited_mat
+        io.imshow(self.base_op.sample)
+        io.show()
     
     def __init_mats(self):
         enlarge_x, enlarge_y = self.base_op.visited_mat.shape
@@ -74,20 +76,21 @@ class criminis_algorithm:
         for pixel in unfilled_list:
             temp = (pixel[0] - margin, pixel[0] + 1 + margin, pixel[1] - margin, pixel[1] + 1 + margin)
             confidence = self.base_op.visited_mat[temp[0]:temp[1], temp[2]:temp[3]].sum()
-            iso_dx = self.isophote_x[pixel[0], pixel[1]]
-            iso_dy = self.isophote_y[pixel[0], pixel[1]]
+            iso_dx = self.isophote_x[pixel[0] - margin, pixel[1] - margin]
+            iso_dy = self.isophote_y[pixel[0] - margin, pixel[1] -margin]
             norm = math.sqrt(iso_dx*iso_dx + iso_dy*iso_dy)
             if norm != 0:
                 iso_dx /= norm
                 iso_dy /= norm
-            dx = gradient_y[pixel[0], pixel[1]]
-            dy = -gradient_x[pixel[0], pixel[1]]
+            dx = gradient_y[pixel[0] - margin, pixel[1] - margin]
+            dy = gradient_x[pixel[0] - margin, pixel[1] - margin]
             norm = math.sqrt(dx*dx + dy*dy)
             if norm != 0:
                 dx /= norm
                 dy /= norm
-            data = math.fabs(dx*iso_dx + dy*iso_dy)
-            priority = data*confidence
+            data_1 = math.fabs(-dx*iso_dx + dy*iso_dy)
+            data_2 = math.fabs(dx*iso_dx + -dy*iso_dy)
+            priority = max(data_2, data_1)*confidence
             if priority >= min_priority:
                 min_pixel = pixel
                 min_priority = priority

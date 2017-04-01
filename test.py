@@ -26,5 +26,5 @@ if __name__ == '__main__':
     # people
     base_op =  base_operation('./pics/test_im3.jpg', 9)
     criminis_obj = criminis_algorithm(base_op)
-    criminis_obj.remove_blocks([(352,485,223,253)])
+    criminis_obj.remove_blocks([(352,485,222,253)])
     criminis_obj.do_criminis()
