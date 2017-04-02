@@ -24,6 +24,7 @@ class base_operation:
         # normalize
         self.sample *= (1.0/self.sample.max())
         # self.window_size need to be odd number
+        self.window_size = window_size
         if self.window_size & 1 == 0:
             self.window_size += 1
         self.margin = self.window_size / 2
