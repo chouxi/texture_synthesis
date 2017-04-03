@@ -51,15 +51,11 @@ class efros_algorithm:
         while 1:
             flag = 0
             pixel_list = self.__get_unfilled_neighbor()
-            print len(pixel_list)
             if len(pixel_list) == 0:
                 break
             for pixel in pixel_list:
                 template = self.base_op.get_neighborwind(image, pixel)
-                start = time.time()
                 matches_list = self.base_op.find_matches(template, image, gauss_mask, np.asarray(sample_block_list), coordinate_list, self.err_threshold)
-                end = time.time()
-                print end - start
                 if matches_list == 1:
                     match_pixel = matches_list[0]
                 else:
@@ -121,10 +117,7 @@ class efros_algorithm:
                 sample_block_list.append(tmp)
                 coordinate_list.append((x - self.base_op.margin,y - self.base_op.margin))
             self.base_op.visited_mat[x,y] = 1
-        start = time.time()
         self.__grow_image(image, sample_block_list, coordinate_list)
-        end = time.time()
-        print end - start
         image = image[self.base_op.margin: new_x - self.base_op.margin, self.base_op.margin: new_y - self.base_op.margin] *255
         io.imshow(image, cmap='gray')
         io.show()
