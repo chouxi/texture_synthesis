@@ -23,6 +23,7 @@ if __name__ == '__main__':
     efros_obj = efros_algorithm(base_op)
     efros_obj.efros_impainting()
     '''
+    '''
     base_op =  base_operation('./pics/test_im3.jpg', 9)
     criminis_obj = criminis_algorithm(base_op)
     # people
@@ -32,3 +33,10 @@ if __name__ == '__main__':
     # pole
     criminis_obj.remove_blocks([(630, 664,3,390), (600, 630, 3, 435), (570,600,95,490), (540,570, 190,530),(510,540, 283, 570), (480, 510, 390, 610), (465,480, 465, 630),(440,465, 515,660)])
     criminis_obj.do_criminis()
+    '''
+    base_op =  base_operation('./pics/test_im3.jpg', 9)
+    efros_obj = efros_algorithm(base_op)
+    # person
+    # efros_obj.efros_removal([(352,485,222,253)])
+    # pole
+    efros_obj.efros_removal([(630, 664,3,390), (600, 630, 3, 435), (570,600,95,490), (540,570, 190,530),(510,540, 283, 570), (480, 510, 390, 610), (465,480, 465, 630),(440,465, 515,660)])

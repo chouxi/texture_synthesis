@@ -12,7 +12,7 @@
 '''
 import time
 import numpy as np
-from skimage import io, morphology
+from skimage import io, morphology, color
 
 class base_operation:
     window_size = 5

@@ -55,7 +55,10 @@ class efros_algorithm:
                 break
             for pixel in pixel_list:
                 template = self.base_op.get_neighborwind(image, pixel)
+                start = time.time()
                 matches_list = self.base_op.find_matches(template, image, gauss_mask, np.asarray(sample_block_list), coordinate_list, self.err_threshold)
+                end = time.time()
+                print end- start
                 if matches_list == 1:
                     match_pixel = matches_list[0]
                 else:
@@ -117,6 +120,43 @@ class efros_algorithm:
                 sample_block_list.append(tmp)
                 coordinate_list.append((x - self.base_op.margin,y - self.base_op.margin))
             self.base_op.visited_mat[x,y] = 1
+        self.__grow_image(image, sample_block_list, coordinate_list)
+        image = image[self.base_op.margin: new_x - self.base_op.margin, self.base_op.margin: new_y - self.base_op.margin] *255
+        io.imshow(image, cmap='gray')
+        io.show()
+
+    def efros_removal(self, block_list):
+        margin = self.base_op.margin
+        self.base_op.sample = color.rgb2gray(self.base_op.sample)
+        sample_x, sample_y = self.base_op.sample.shape
+        visited_mat = np.ones(self.base_op.sample.shape)
+        for block in block_list:
+            if len(block) < 4:
+                print "[ERROR] input block invalid"
+            visited_mat[block[0]:block[1], block[2]:block[3]] = 0
+            self.base_op.sample = np.multiply(self.base_op.sample, visited_mat)
+        self.base_op.visited_mat = np.zeros((sample_x + margin * 2, sample_y+ margin*2))
+        self.base_op.visited_mat[margin:sample_x + margin, margin: sample_y + margin] = visited_mat
+        io.imshow(self.base_op.sample)
+        io.show()
+        new_x = sample_x + self.base_op.margin*2
+        new_y = sample_y + self.base_op.margin*2
+        # init mats
+        image = np.zeros((new_x,new_y))
+        # put sample into the image 
+        image[self.base_op.margin: new_x - self.base_op.margin, self.base_op.margin:new_y - self.base_op.margin] = self.base_op.sample
+        # get sample block list
+        sample_block_list = []
+        # get coorsponding coordinate
+        coordinate_list = []
+        for (x,y),v in np.ndenumerate(image):
+            if v == 0:
+                continue
+            tmp = image[(x - margin):(x+1 + margin),(y-margin):(y+1+margin)]
+            if tmp[tmp==0].shape[0] == 0:
+                sample_block_list.append(tmp)
+                coordinate_list.append((x - margin,y - margin))
+        print len(sample_block_list)
         self.__grow_image(image, sample_block_list, coordinate_list)
         image = image[self.base_op.margin: new_x - self.base_op.margin, self.base_op.margin: new_y - self.base_op.margin] *255
         io.imshow(image, cmap='gray')

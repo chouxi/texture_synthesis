@@ -11,7 +11,7 @@
 # =============================================================================
 '''
 from base_op import *
-from skimage import color, filters
+from skimage import filters
 import math
 
 class criminis_algorithm:
@@ -85,7 +85,7 @@ class criminis_algorithm:
         gradient_x = filters.scharr_h(self.boundary_mat[margin:self.origin_sample.shape[0] + margin, margin:self.origin_sample.shape[1] + margin])
         gradient_y = filters.scharr_v(self.boundary_mat[margin:self.origin_sample.shape[0] + margin, margin:self.origin_sample.shape[1] + margin])
         for pixel in unfilled_list:
-            if pixel[0] < margin or pixel[0] > self.origin_sample.shape[0] + margin or pixel[1] < margin or pixel[1] < margin or pixel[1] > self.origin_sample.shape[1] + margin:
+            if pixel[0] < margin or pixel[0] >= self.origin_sample.shape[0] + margin or pixel[1] < margin or pixel[1] < margin or pixel[1] >= self.origin_sample.shape[1] + margin:
                 continue
             temp = (pixel[0] - margin, pixel[0] + 1 + margin, pixel[1] - margin, pixel[1] + 1 + margin)
             confidence = self.base_op.visited_mat[temp[0]:temp[1], temp[2]:temp[3]].sum()
@@ -129,14 +129,13 @@ class criminis_algorithm:
             #print self.image[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin, pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
             #print self.base_op.visited_mat[pixel[0] - self.base_op.margin: pixel[0] + 1 + self.base_op.margin pixel[1] - self.base_op.margin: pixel[1] + 1 + self.base_op.margin]
             best_pixel,error = self.base_op.find_matches(template, self.image, self.gauss_mask, np.asarray(sample_block_list), coordinate_list)
-            inver_visit = abs(self.base_op.visited_mat[template[0]: template[1], template[2]: template[3]] - 1)
+            inver_visit = abs(self.boundary_mat[template[0]: template[1], template[2]: template[3]] - 1)
             inver_visit_rgb = np.ones((inver_visit.shape[0],inver_visit.shape[1],3))
             for (x,y),v in np.ndenumerate(inver_visit):
                 if v == 1:
                     inver_visit_rgb[x,y] = np.array([1,1,1])
                 else:
                     inver_visit_rgb[x,y] = np.array([0,0,0])
-            print self.image_rgb[template[0] + margin:template[1] + margin, template[2] + margin:template[3] + margin].shape, self.sample_rgb[best_pixel[0]-margin:best_pixel[0]+1+margin, best_pixel[1]-margin: best_pixel[1]+1+margin].shape ,inver_visit_rgb.shape
             print pixel, best_pixel
             self.image[template[0]:template[1], template[2]:template[3]] += np.multiply(self.base_op.sample[best_pixel[0]-margin:best_pixel[0]+1+margin, best_pixel[1]-margin: best_pixel[1]+1+margin], inver_visit)
             self.image_rgb[template[0]:template[1], template[2]:template[3]] += np.multiply(self.sample_rgb[best_pixel[0]-margin:best_pixel[0]+1+margin, best_pixel[1]-margin: best_pixel[1]+1+margin], inver_visit_rgb)
